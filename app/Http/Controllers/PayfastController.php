@@ -17,11 +17,65 @@ class PayfastController extends Controller
     }
 
     /**
+     * Show Settings & API Keys configuration page
+     */
+    public function settings()
+    {
+        $settings = PayfastService::getAllSettings();
+        return view('payfast.settings', compact('settings'));
+    }
+
+    /**
+     * Save API Keys & Customization settings
+     */
+    public function saveSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'merchant_id'  => 'nullable|string|max:100',
+            'secured_key'  => 'nullable|string|max:255',
+            'hash_key'     => 'nullable|string|max:255',
+            'base_url'     => 'required|url',
+            'brand_name'   => 'nullable|string|max:100',
+            'brand_color'  => 'nullable|string|max:20',
+            'accent_color' => 'nullable|string|max:20',
+            'logo_url'     => 'nullable|string|max:255',
+        ]);
+
+        PayfastService::saveSettings($validated);
+
+        return redirect()->route('payfast.settings')
+            ->with('success', 'API settings and branding updated successfully!');
+    }
+
+    /**
+     * Test API Connection
+     */
+    public function testConnection(Request $request)
+    {
+        $result = $this->payfast->testConnection(
+            $request->input('merchant_id'),
+            $request->input('secured_key'),
+            $request->input('base_url')
+        );
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json($result);
+        }
+
+        if ($result['success']) {
+            return back()->with('success', $result['message']);
+        }
+
+        return back()->withErrors(['connection_error' => $result['message']]);
+    }
+
+    /**
      * Show the create payment form (Admin/Merchant side)
      */
     public function create()
     {
-        return view('payfast.create');
+        $settings = PayfastService::getAllSettings();
+        return view('payfast.create', compact('settings'));
     }
 
     /**

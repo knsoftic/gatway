@@ -9,6 +9,9 @@ Route::get('/', function () {
 
 // PayFast QR Pay Routes
 Route::prefix('payfast')->name('payfast.')->group(function () {
+    Route::get('/settings', [PayfastController::class, 'settings'])->name('settings');
+    Route::post('/settings', [PayfastController::class, 'saveSettings'])->name('settings.save');
+    Route::post('/settings/test', [PayfastController::class, 'testConnection'])->name('settings.test');
     Route::get('/create', [PayfastController::class, 'create'])->name('create');
     Route::post('/create', [PayfastController::class, 'store'])->name('store');
     Route::get('/qr/{qrToken}', [PayfastController::class, 'showQr'])->name('qr.show');

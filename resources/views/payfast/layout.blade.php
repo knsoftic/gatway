@@ -13,8 +13,8 @@
 
     <style>
         :root {
-            --brand-primary: {{ config('payfast.brand_color', '#000e8f') }};
-            --brand-accent: {{ config('payfast.accent_color', '#6bc197') }};
+            --brand-primary: {{ \App\Services\PayfastService::getSetting('brand_color', '#000e8f') }};
+            --brand-accent: {{ \App\Services\PayfastService::getSetting('accent_color', '#6bc197') }};
             --brand-dark: #0f172a;
             --brand-light: #f8fafc;
             --brand-surface: #ffffff;
@@ -259,10 +259,25 @@
 </head>
 <body>
     <div class="payment-container">
-        <div class="brand-header">
-            <div class="brand-badge">
-                <span class="dot"></span>
-                <span>{{ config('payfast.brand_name', 'PayFast Gateway') }}</span>
+        <div class="brand-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <a href="{{ route('payfast.create') }}" style="text-decoration: none;">
+                <div class="brand-badge">
+                    <span class="dot"></span>
+                    <span>{{ \App\Services\PayfastService::getSetting('brand_name', 'PayFast Gateway') }}</span>
+                </div>
+            </a>
+
+            <div style="display: flex; gap: 8px;">
+                <a href="{{ route('payfast.create') }}" 
+                   style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; text-decoration: none; padding: 6px 12px; border-radius: 9999px; background: rgba(255,255,255,0.85); color: var(--brand-dark); border: 1px solid var(--brand-border); box-shadow: var(--shadow-subtle);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    New QR
+                </a>
+                <a href="{{ route('payfast.settings') }}" 
+                   style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; text-decoration: none; padding: 6px 12px; border-radius: 9999px; background: rgba(255,255,255,0.85); color: var(--brand-primary); border: 1px solid var(--brand-border); box-shadow: var(--shadow-subtle);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    API Keys
+                </a>
             </div>
         </div>
 

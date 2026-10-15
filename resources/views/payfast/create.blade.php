@@ -10,6 +10,17 @@
     </div>
 
     <div class="card-body">
+        @if (empty($settings['merchant_id']) || empty($settings['secured_key']))
+            <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="font-size: 13px; color: #92400e;">
+                    <strong>API Keys Needed:</strong> Enter your PremierPayFast Merchant ID & Key.
+                </div>
+                <a href="{{ route('payfast.settings') }}" style="font-size: 12px; font-weight: 700; color: #b45309; text-decoration: underline; white-space: nowrap;">
+                    Add Keys →
+                </a>
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="alert-error">
                 <ul style="padding-left: 18px;">
