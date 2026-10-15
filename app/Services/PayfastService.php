@@ -11,13 +11,15 @@ class PayfastService
     protected string $merchantId;
     protected string $securedKey;
     protected string $hashKey;
+    protected bool $demoMode;
 
     public function __construct()
     {
-        $this->baseUrl    = rtrim(self::getSetting('base_url', 'https://uat.premierpayfast.com/api'), '/');
+        $this->baseUrl    = rtrim(self::getSetting('base_url', 'https://uat.premierpayfast.com'), '/');
         $this->merchantId = (string) self::getSetting('merchant_id', '');
         $this->securedKey = (string) self::getSetting('secured_key', '');
         $this->hashKey    = (string) self::getSetting('hash_key', '');
+        $this->demoMode   = (bool) self::getSetting('demo_mode', false);
     }
 
     /**
@@ -49,7 +51,8 @@ class PayfastService
             'merchant_id'  => config('payfast.merchant_id', ''),
             'secured_key'  => config('payfast.secured_key', ''),
             'hash_key'     => config('payfast.hash_key', ''),
-            'base_url'     => config('payfast.base_url', 'https://uat.premierpayfast.com/api'),
+            'base_url'     => config('payfast.base_url', 'https://uat.premierpayfast.com'),
+            'demo_mode'    => config('payfast.demo_mode', false),
             'brand_name'   => config('payfast.brand_name', 'PayFast QR Gateway'),
             'brand_color'  => config('payfast.brand_color', '#000e8f'),
             'accent_color' => config('payfast.accent_color', '#6bc197'),
@@ -65,6 +68,11 @@ class PayfastService
         $current = self::getAllSettings();
         $updated = array_merge($current, array_filter($data, fn($v) => !is_null($v)));
 
+        // Ensure boolean for demo_mode
+        if (isset($data['demo_mode'])) {
+            $updated['demo_mode'] = filter_var($data['demo_mode'], FILTER_VALIDATE_BOOLEAN);
+        }
+
         // Save JSON in storage
         $path = storage_path('app/payfast_settings.json');
         if (!is_dir(dirname($path))) {
@@ -77,7 +85,8 @@ class PayfastService
             'PAYFAST_MERCHANT_ID'  => $updated['merchant_id'] ?? '',
             'PAYFAST_SECURED_KEY'  => $updated['secured_key'] ?? '',
             'PAYFAST_HASH_KEY'     => $updated['hash_key'] ?? '',
-            'PAYFAST_BASE_URL'     => $updated['base_url'] ?? 'https://uat.premierpayfast.com/api',
+            'PAYFAST_BASE_URL'     => $updated['base_url'] ?? 'https://uat.premierpayfast.com',
+            'PAYFAST_DEMO_MODE'    => ($updated['demo_mode'] ?? false) ? 'true' : 'false',
             'PAYFAST_BRAND_NAME'   => '"' . ($updated['brand_name'] ?? 'PayFast QR Gateway') . '"',
             'PAYFAST_BRAND_COLOR'  => '"' . ($updated['brand_color'] ?? '#000e8f') . '"',
             'PAYFAST_ACCENT_COLOR' => '"' . ($updated['accent_color'] ?? '#6bc197') . '"',
@@ -118,10 +127,24 @@ class PayfastService
         $sKey = $securedKey ?: $this->securedKey;
         $url = rtrim($baseUrl ?: $this->baseUrl, '/');
 
+        if ($this->demoMode) {
+            return [
+                'success' => true,
+                'message' => 'Demo Simulator Mode is ON. Simulated connection is successful! (All transactions will be approved for testing).',
+            ];
+        }
+
         if (empty($mId) || empty($sKey)) {
             return [
                 'success' => false,
                 'message' => 'Merchant ID and Secured Key are required to test connection.',
+            ];
+        }
+
+        if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+            return [
+                'success' => false,
+                'message' => 'Please enter a valid Gateway Base URL.',
             ];
         }
 
@@ -138,21 +161,30 @@ class PayfastService
                 if (!empty($data['token'])) {
                     return [
                         'success' => true,
-                        'message' => 'Connected successfully! Access Token received from PremierPayFast.',
+                        'message' => 'Connected successfully! Valid Access Token received from PremierPayFast.',
                         'data'    => $data,
                     ];
                 }
             }
 
-            $errorMsg = $response->json('message') ?? $response->json('error_description') ?? $response->body();
+            $status = $response->status();
+            $body = $response->json('message') ?? $response->json('error_description') ?? $response->body();
+
             return [
                 'success' => false,
-                'message' => 'API returned error (' . $response->status() . '): ' . ($errorMsg ?: 'Unauthorized / Invalid credentials'),
+                'message' => "Gateway reached (HTTP {$status}), but returned: " . (strip_tags(substr($body, 0, 150)) ?: 'Invalid credentials or endpoint'),
             ];
         } catch (\Exception $e) {
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'Could not resolve host')) {
+                return [
+                    'success' => false,
+                    'message' => "Host could not be resolved. The domain '{$url}' does not exist in DNS. Please check the exact Gateway Base URL provided in your PayFast merchant activation email.",
+                ];
+            }
             return [
                 'success' => false,
-                'message' => 'Connection failed: ' . $e->getMessage(),
+                'message' => 'Connection failed: ' . $msg,
             ];
         }
     }
@@ -162,6 +194,13 @@ class PayfastService
      */
     public function getAccessToken(string $customerIp = null): ?array
     {
+        if ($this->demoMode) {
+            return [
+                'token'      => 'demo_token_' . bin2hex(random_bytes(16)),
+                'expires_in' => 3600,
+            ];
+        }
+
         $ip = $customerIp ?? request()->ip() ?? '127.0.0.1';
 
         try {
@@ -192,6 +231,15 @@ class PayfastService
      */
     public function customerValidate(string $token, array $data): ?array
     {
+        if ($this->demoMode) {
+            return [
+                'code'           => '00',
+                'message'        => 'Demo OTP sent! Enter 1234 or any 4-6 digit code to complete payment.',
+                'transaction_id' => 'DEMO-TXN-' . time(),
+                'otp_required'   => true,
+            ];
+        }
+
         $payload = [
             'basket_id'          => $data['basket_id'],
             'txnamt'             => $data['txnamt'],
@@ -234,6 +282,16 @@ class PayfastService
      */
     public function initiateTransaction(string $token, array $data): ?array
     {
+        if ($this->demoMode) {
+            return [
+                'code'           => '00',
+                'status_code'    => '00',
+                'status_msg'     => 'Transaction Approved (Demo Mode)',
+                'transaction_id' => $data['transaction_id'] ?? ('DEMO-TXN-' . time()),
+                'basket_id'      => $data['basket_id'],
+            ];
+        }
+
         $payload = [
             'basket_id'          => $data['basket_id'],
             'txnamt'             => $data['txnamt'],
@@ -278,6 +336,13 @@ class PayfastService
      */
     public function getTransactionStatus(string $token, string $transactionId): ?array
     {
+        if ($this->demoMode) {
+            return [
+                'status'     => 'completed',
+                'status_msg' => 'Approved',
+            ];
+        }
+
         try {
             $response = Http::timeout(15)->withToken($token)
                 ->get("{$this->baseUrl}/transaction/{$transactionId}");

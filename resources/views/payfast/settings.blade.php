@@ -33,6 +33,67 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
 
+    .demo-mode-card {
+        background: #f0fdf4;
+        border: 1.5px solid #86efac;
+        border-radius: var(--radius-md);
+        padding: 16px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+    }
+
+    .demo-mode-card.inactive {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    /* Switch styling */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 26px;
+        flex-shrink: 0;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #cbd5e1;
+        transition: .3s;
+        border-radius: 26px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .3s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: #10b981;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(22px);
+    }
+
     .color-picker-wrapper {
         display: flex;
         align-items: center;
@@ -66,25 +127,27 @@
         font-weight: 600;
     }
 
-    .env-selector {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-bottom: 14px;
+    .url-presets {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+        flex-wrap: wrap;
     }
 
-    .env-card {
-        border: 1.5px solid var(--brand-border);
-        border-radius: var(--radius-sm);
-        padding: 10px 14px;
+    .preset-pill {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: #f1f5f9;
+        color: var(--brand-primary);
+        border: 1px solid var(--brand-border);
         cursor: pointer;
         transition: all 0.15s ease;
-        background: #fff;
     }
 
-    .env-card.active {
-        border-color: var(--brand-primary);
-        background: rgba(0, 14, 143, 0.04);
+    .preset-pill:hover {
+        background: #e2e8f0;
     }
 
     .status-box {
@@ -93,6 +156,7 @@
         font-size: 13px;
         margin-top: 14px;
         display: none;
+        line-height: 1.5;
     }
 </style>
 @endpush
@@ -103,7 +167,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
                 <h2 style="font-size: 18px; font-weight: 700; color: var(--brand-dark);">Gateway & API Settings</h2>
-                <p style="font-size: 13px; color: var(--brand-muted); margin-top: 2px;">Configure PremierPayFast API credentials and customize QR UI</p>
+                <p style="font-size: 13px; color: var(--brand-muted); margin-top: 2px;">Configure PremierPayFast API credentials or enable Demo Simulator Mode</p>
             </div>
             <a href="{{ route('payfast.create') }}" style="font-size: 12px; font-weight: 600; color: var(--brand-primary); text-decoration: none;">
                 ← Back
@@ -130,7 +194,7 @@
 
         <div class="settings-nav">
             <button type="button" class="settings-nav-btn active" onclick="switchTab('api-tab', this)">
-                🔑 API Credentials
+                🔑 API Credentials & Simulator
             </button>
             <button type="button" class="settings-nav-btn" onclick="switchTab('brand-tab', this)">
                 🎨 UI & Branding
@@ -140,21 +204,52 @@
         <form action="{{ route('payfast.settings.save') }}" method="POST" id="settings-form">
             @csrf
 
-            <!-- TAB 1: API CREDENTIALS -->
+            <!-- TAB 1: API CREDENTIALS & SIMULATOR -->
             <div id="api-tab">
-                <div class="form-group">
-                    <label class="form-label">API Environment</label>
-                    <div class="env-selector">
-                        <div class="env-card {{ ($settings['base_url'] ?? '') != 'https://ipg.premierpayfast.com/api' ? 'active' : '' }}" onclick="selectEnv('https://uat.premierpayfast.com/api', this)">
-                            <div style="font-weight: 700; font-size: 13px; color: var(--brand-primary);">Sandbox / Testing (UAT)</div>
-                            <div style="font-size: 11px; color: var(--brand-muted); margin-top: 2px;">Testing with test accounts</div>
+
+                <!-- DEMO MODE TOGGLE -->
+                @php
+                    $isDemo = (bool) ($settings['demo_mode'] ?? false);
+                @endphp
+                <div class="demo-mode-card {{ $isDemo ? '' : 'inactive' }}" id="demo-card">
+                    <div>
+                        <div style="font-weight: 700; font-size: 14px; color: {{ $isDemo ? '#166534' : 'var(--brand-dark)' }}; display: flex; align-items: center; gap: 6px;">
+                            <span>🧪 Demo Simulator Mode</span>
+                            <span style="font-size: 10px; background: {{ $isDemo ? '#22c55e' : '#94a3b8' }}; color: #fff; padding: 2px 6px; border-radius: 9999px;" id="demo-badge">
+                                {{ $isDemo ? 'ACTIVE' : 'OFF' }}
+                            </span>
                         </div>
-                        <div class="env-card {{ ($settings['base_url'] ?? '') == 'https://ipg.premierpayfast.com/api' ? 'active' : '' }}" onclick="selectEnv('https://ipg.premierpayfast.com/api', this)">
-                            <div style="font-weight: 700; font-size: 13px; color: #16a34a;">Live / Production</div>
-                            <div style="font-size: 11px; color: var(--brand-muted); margin-top: 2px;">Real customer payments</div>
-                        </div>
+                        <p style="font-size: 12px; color: var(--brand-muted); margin-top: 4px;">
+                            Turn ON to test the entire QR flow (generating, scanning, OTP, receipts) without needing real API approval from PremierPayFast.
+                        </p>
                     </div>
-                    <input type="hidden" name="base_url" id="base_url_input" value="{{ old('base_url', $settings['base_url'] ?? 'https://uat.premierpayfast.com/api') }}">
+                    <label class="switch">
+                        <input type="checkbox" name="demo_mode" value="1" id="demo_mode_checkbox" {{ $isDemo ? 'checked' : '' }} onchange="toggleDemoCard(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="base_url">
+                        Gateway Base URL *
+                    </label>
+                    <input type="url" id="base_url" name="base_url" 
+                           value="{{ old('base_url', $settings['base_url'] ?? 'https://uat.premierpayfast.com') }}" 
+                           required class="form-control" style="font-family: monospace; font-size: 13px;"
+                           placeholder="https://uat.premierpayfast.com">
+                    
+                    <div class="url-presets">
+                        <span style="font-size: 11px; color: var(--brand-muted); align-self: center;">Quick Presets:</span>
+                        <button type="button" class="preset-pill" onclick="setBaseUrl('https://uat.premierpayfast.com')">
+                            Official Sandbox (uat.premierpayfast.com)
+                        </button>
+                        <button type="button" class="preset-pill" onclick="setBaseUrl('https://premierpayfast.com')">
+                            Production (premierpayfast.com)
+                        </button>
+                    </div>
+                    <span style="font-size: 11px; color: var(--brand-muted); display: block; margin-top: 6px;">
+                        💡 <strong>Note:</strong> Enter the exact Gateway URL provided in your PayFast merchant welcome email. (Avoid invalid subdomains like ipg.* that do not exist).
+                    </span>
                 </div>
 
                 <div class="form-group">
@@ -163,7 +258,7 @@
                     </label>
                     <input type="text" id="merchant_id" name="merchant_id" 
                            value="{{ old('merchant_id', $settings['merchant_id'] ?? '') }}" 
-                           placeholder="e.g. 100234" class="form-control" autocomplete="off">
+                           placeholder="e.g. 100234 (Or test ID if in demo mode)" class="form-control" autocomplete="off">
                     <span style="font-size: 11px; color: var(--brand-muted);">Provided by PremierPayFast onboarding team</span>
                 </div>
 
@@ -189,7 +284,7 @@
                                placeholder="Optional HMAC key for payload signing" class="form-control" autocomplete="off">
                         <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('hash_key', this)">Show</button>
                     </div>
-                    <span style="font-size: 11px; color: var(--brand-muted);">Leave blank if your merchant profile doesn't require hash signing</span>
+                    <span style="font-size: 11px; color: var(--brand-muted);">Leave blank if your merchant profile does not require HMAC signature</span>
                 </div>
 
                 <div style="margin-top: 10px; margin-bottom: 20px;">
@@ -259,7 +354,7 @@
     </div>
 
     <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center;">
-        <span>Stored securely in .env & config</span>
+        <span>Saved in .env & config</span>
         <a href="{{ route('payfast.create') }}" style="color: var(--brand-muted); text-decoration: none; font-size: 11px;">
             Go to Generator →
         </a>
@@ -277,10 +372,22 @@
         btn.classList.add('active');
     }
 
-    function selectEnv(url, card) {
-        document.getElementById('base_url_input').value = url;
-        document.querySelectorAll('.env-card').forEach(c => c.classList.remove('active'));
-        card.classList.add('active');
+    function setBaseUrl(url) {
+        document.getElementById('base_url').value = url;
+    }
+
+    function toggleDemoCard(checked) {
+        const card = document.getElementById('demo-card');
+        const badge = document.getElementById('demo-badge');
+        if (checked) {
+            card.classList.remove('inactive');
+            badge.style.background = '#22c55e';
+            badge.innerText = 'ACTIVE';
+        } else {
+            card.classList.add('inactive');
+            badge.style.background = '#94a3b8';
+            badge.innerText = 'OFF';
+        }
     }
 
     function togglePasswordVisibility(fieldId, btn) {
@@ -309,7 +416,7 @@
         const statusBox = document.getElementById('test-status-box');
         const merchantId = document.getElementById('merchant_id').value;
         const securedKey = document.getElementById('secured_key').value;
-        const baseUrl = document.getElementById('base_url_input').value;
+        const baseUrl = document.getElementById('base_url').value;
 
         btn.disabled = true;
         btn.innerText = 'Testing connection...';

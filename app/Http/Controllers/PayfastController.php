@@ -35,6 +35,7 @@ class PayfastController extends Controller
             'secured_key'  => 'nullable|string|max:255',
             'hash_key'     => 'nullable|string|max:255',
             'base_url'     => 'required|url',
+            'demo_mode'    => 'nullable',
             'brand_name'   => 'nullable|string|max:100',
             'brand_color'  => 'nullable|string|max:20',
             'accent_color' => 'nullable|string|max:20',
